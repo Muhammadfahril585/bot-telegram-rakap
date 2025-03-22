@@ -137,9 +137,11 @@ async def start(update: Update, context: CallbackContext) -> None:
     )
 
 def main():
-    if not TOKEN:
-        print("Error: Harap atur TELEGRAM_TOKEN di environment variable")
-        return
+    import os
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+if not TOKEN:
+    raise ValueError("Error: TELEGRAM_TOKEN belum diatur di environment variables.")
 
     app = Application.builder().token(TOKEN).build()
 
@@ -150,8 +152,6 @@ def main():
 
     print("Bot berjalan...")
     app.run_polling()
-if __name__ == "__main__":
-    keep_alive()  # Tambahkan ini
-    main()
+
 if __name__ == "__main__":
     main()
