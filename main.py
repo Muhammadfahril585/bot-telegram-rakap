@@ -1,7 +1,13 @@
 
+import os
+import sqlite3
+import datetime
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from flask import Flask
 from threading import Thread
 
+# Fungsi untuk menjaga bot tetap berjalan (hanya untuk Replit, tidak dibutuhkan di Render)
 app = Flask(__name__)
 
 @app.route('/')
@@ -14,14 +20,13 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
-import os
-import sqlite3
-import datetime
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+# Mengambil token dari environment variable
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+if not TOKEN:
+    raise ValueError("Error: TELEGRAM_TOKEN belum diatur di environment variables.")
 
+# Koneksi ke database SQLite
 conn = sqlite3.connect("hafalan.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -34,6 +39,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS santri (
                     total_juz REAL)''')
 conn.commit()
 
+# Fungsi tambah hafalan
 async def tambah_hafalan(update: Update, context: CallbackContext) -> None:
     try:
         pesan = update.message.text
@@ -54,14 +60,7 @@ async def tambah_hafalan(update: Update, context: CallbackContext) -> None:
         cursor.execute("SELECT pekan, bulan FROM santri WHERE nama=? ORDER BY pekan DESC LIMIT 1", (nama,))
         hasil = cursor.fetchone()
 
-        if hasil:
-            last_pekan, last_bulan = hasil
-            if last_bulan != bulan_sekarang:
-                pekan = 1  # Reset pekan jika sudah masuk bulan baru
-            else:
-                pekan = last_pekan + 1
-        else:
-            pekan = 1
+        pekan = 1 if not hasil or hasil[1] != bulan_sekarang else hasil[0] + 1
 
         cursor.execute("INSERT INTO santri (nama, pekan, bulan, hafalan_baru, total_juz) VALUES (?, ?, ?, ?, ?)", 
                        (nama, pekan, bulan_sekarang, hafalan_baru, total_juz))
@@ -79,9 +78,9 @@ async def tambah_hafalan(update: Update, context: CallbackContext) -> None:
     except Exception as e:
         await update.message.reply_text(f"⚠️ Terjadi kesalahan: {str(e)}")
 
+# Fungsi melihat data santri
 async def lihat_santri(update: Update, context: CallbackContext) -> None:
     nama = update.message.text.strip()
-
     cursor.execute("SELECT pekan, bulan, hafalan_baru, total_juz FROM santri WHERE nama=? ORDER BY bulan DESC, pekan DESC", (nama,))
     hasil = cursor.fetchall()
 
@@ -96,6 +95,7 @@ async def lihat_santri(update: Update, context: CallbackContext) -> None:
 
     await update.message.reply_text(pesan)
 
+# Fungsi mengedit hafalan
 async def edit_hafalan(update: Update, context: CallbackContext) -> None:
     try:
         pesan = update.message.text
@@ -127,6 +127,7 @@ async def edit_hafalan(update: Update, context: CallbackContext) -> None:
     except Exception as e:
         await update.message.reply_text(f"⚠️ Terjadi kesalahan: {str(e)}")
 
+# Fungsi perintah `/start`
 async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text(
         "Halo! Kirim data hafalan santri dengan format:\n"
@@ -136,13 +137,8 @@ async def start(update: Update, context: CallbackContext) -> None:
         "Untuk melihat data, cukup kirimkan nama santri."
     )
 
+# Fungsi utama menjalankan bot
 def main():
-    import os
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-
-if not TOKEN:
-    raise ValueError("Error: TELEGRAM_TOKEN belum diatur di environment variables.")
-
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -154,4 +150,5 @@ if not TOKEN:
     app.run_polling()
 
 if __name__ == "__main__":
+    keep_alive()  # Hanya aktif jika perlu "keep alive"
     main()
