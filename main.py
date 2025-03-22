@@ -109,7 +109,8 @@ async def lihat_santri(update: Update, context: CallbackContext) -> None:
 
     pesan = f"📌 Data hafalan {nama}:\n"
     for pekan, bulan, hafalan_baru, total_juz in hasil:
-        pesan += f"\n📅 Pekan {pekan} - {bulan}\n📖 Hafalan Baru: {hafalan_baru} Halaman\n📚 Total Hafalan: {total_juz} Juz\n"
+        total_juz_str = int(total_juz) if total_juz.is_integer() else total_juz
+pesan += f"\n📅 Pekan {pekan} - {bulan}\n📖 Hafalan Baru: {hafalan_baru} Halaman\n📚 Total Hafalan: {total_juz_str} Juz\n"
 
     await update.message.reply_text(pesan)
 
@@ -139,7 +140,8 @@ async def edit_hafalan(update: Update, context: CallbackContext) -> None:
                        (hafalan_baru, total_juz, nama, pekan))
         conn.commit()
 
-        await update.message.reply_text(f"✅ Data diperbarui untuk {nama} pada pekan {pekan}.")
+        total_juz_str = int(total_juz) if total_juz.is_integer() else total_juz
+await update.message.reply_text(f"✅ Data diperbarui!\nNama: {nama}\nPekan: {pekan}\nHafalan Baru: {hafalan_baru} Halaman\nTotal Hafalan: {total_juz_str} Juz")
     
     except Exception as e:
         await update.message.reply_text(f"⚠️ Terjadi kesalahan: {str(e)}")
