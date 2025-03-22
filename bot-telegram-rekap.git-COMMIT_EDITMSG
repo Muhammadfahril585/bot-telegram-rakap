@@ -1,0 +1,30 @@
+Assistant checkpoint: Create Telegram bot with secure token handling
+
+Assistant generated file changes:
+- main.py: Create Telegram bot with environment variable
+- .replit: Updated app configuration
+
+---
+
+User prompt:
+
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+
+TOKEN = "7901821881:AAGnvIvqkK4vDemV77mcvHwznokIieH_Z-U"
+
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text("Halo! Bot siap digunakan.")
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+
+    print("Bot berjalan...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
+
+Replit-Commit-Author: Assistant
+Replit-Commit-Session-Id: cff49a3f-d4f0-4945-9882-ad9bbf2c2120
