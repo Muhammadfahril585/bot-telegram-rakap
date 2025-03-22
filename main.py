@@ -36,28 +36,52 @@ conn.commit()
 # Inisialisasi bot dengan webhook
 app_telegram = Application.builder().token(TOKEN).build()
 
-# Fungsi menangani start
+# Fungsi menampilkan menu utama
 async def start(update: Update, context: CallbackContext) -> None:
     keyboard = [
         [InlineKeyboardButton("1️⃣ Tambah Hafalan", callback_data="tambah_hafalan")],
         [InlineKeyboardButton("2️⃣ Lihat Hafalan", callback_data="lihat_hafalan")],
         [InlineKeyboardButton("3️⃣ Rekap Pekanan", callback_data="rekap_pekanan")],
-        [InlineKeyboardButton("4️⃣ Edit Hafalan", callback_data="edit_hafalan")]
+        [InlineKeyboardButton("4️⃣ Edit Hafalan", callback_data="edit_hafalan")],
+        [InlineKeyboardButton("5️⃣ Riwayat Hafalan", callback_data="riwayat_hafalan")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🔹 *Menu Bot Hafalan*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# Fungsi menangani menu
+# Fungsi menangani klik tombol menu
 async def menu_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     await query.answer()
-    menu_responses = {
-        "tambah_hafalan": "📌 Kirim data dengan format:\nTambahHafalan; Nama Santri; Hafalan Baru (halaman); Total Hafalan (juz)",
-        "lihat_hafalan": "🔍 Kirim nama santri untuk melihat data hafalannya.",
-        "rekap_pekanan": "📊 Kirim nama santri untuk melihat rekap hafalannya dalam sebulan.",
-        "edit_hafalan": "✏️ Kirim data dengan format:\nEditHafalan; Nama Santri; Pekan; Hafalan Baru (halaman); Total Hafalan (juz)"
-    }
-    await query.message.reply_text(menu_responses.get(query.data, "Perintah tidak dikenali."))
+
+    if query.data == "riwayat_hafalan":
+        # Ambil daftar bulan unik dari database
+        cursor.execute("SELECT DISTINCT bulan FROM santri ORDER BY bulan DESC")
+        bulan_list = cursor.fetchall()
+
+        if not bulan_list:
+            await query.message.reply_text("⚠️ Tidak ada data riwayat hafalan.")
+            return
+
+        keyboard = [[InlineKeyboardButton(bulan[0], callback_data=f"bulan_{bulan[0]}")] for bulan in bulan_list]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text("📅 Pilih bulan untuk melihat riwayat hafalan:", reply_markup=reply_markup)
+
+    elif query.data.startswith("bulan_"):
+        bulan_terpilih = query.data.replace("bulan_", "")
+
+        cursor.execute("SELECT nama, pekan, hafalan_baru, total_juz FROM santri WHERE bulan=? ORDER BY pekan", (bulan_terpilih,))
+        hasil = cursor.fetchall()
+
+        if not hasil:
+            await query.message.reply_text(f"⚠️ Tidak ada data hafalan untuk bulan *{bulan_terpilih}*.", parse_mode="Markdown")
+            return
+
+        pesan = f"📅 *Riwayat Hafalan Bulan {bulan_terpilih}*:\n"
+        for nama, pekan, hafalan_baru, total_juz in hasil:
+            total_juz_str = int(total_juz) if total_juz.is_integer() else total_juz
+            pesan += f"\n👤 {nama}\n📅 Pekan {pekan}\n📖 Hafalan Baru: {hafalan_baru} Halaman\n📚 Total Hafalan: {total_juz_str} Juz\n"
+
+        await query.message.reply_text(pesan, parse_mode="Markdown")
 
 # Fungsi menangani webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
