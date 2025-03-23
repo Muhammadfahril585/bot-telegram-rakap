@@ -46,12 +46,9 @@ app_telegram.add_handler(CommandHandler("start", start))
 # Fungsi utama menjalankan bot dengan polling
 async def main():
     print("Bot berjalan dengan metode polling...")
-    await app_telegram.start()
-    await app_telegram.updater.start_polling()
-    await app_telegram.updater.idle()
+    await app_telegram.run_polling()
 
 # Jalankan aplikasi dengan asyncio
 if __name__ == "__main__":
     import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    asyncio.run(main())  # Perbaikan: Gunakan asyncio.run()
