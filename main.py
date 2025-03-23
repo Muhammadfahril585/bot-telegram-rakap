@@ -1,12 +1,10 @@
 
 import os
 import sqlite3
-import datetime
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, MessageHandler, 
-    filters, CallbackContext
+    Application, CommandHandler, CallbackQueryHandler, CallbackContext
 )
 
 # Inisialisasi Flask
@@ -18,7 +16,9 @@ if not TOKEN:
     raise ValueError("Error: TELEGRAM_TOKEN belum diatur di environment variables.")
 
 # URL webhook (gantilah dengan URL server kamu)
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Pastikan kamu sudah mengatur ini di environment
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+if not WEBHOOK_URL:
+    raise ValueError("Error: WEBHOOK_URL belum diatur di environment variables.")
 
 # Koneksi ke database SQLite
 conn = sqlite3.connect("hafalan.db", check_same_thread=False)
@@ -111,4 +111,6 @@ def main():
     )
 
 if __name__ == "__main__":
+    import asyncio
+    asyncio.run(set_webhook())  # Mengatur webhook sebelum bot berjalan
     main()
