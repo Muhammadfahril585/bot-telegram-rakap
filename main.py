@@ -48,13 +48,12 @@ async def start(update: Update, context: CallbackContext) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🔹 *Menu Bot Hafalan*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# Fungsi menangani klik tombol menu
+# Fungsi menangani klik tombol menu utama
 async def menu_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     await query.answer()
 
     if query.data == "riwayat_hafalan":
-        # Ambil daftar bulan unik dari database
         cursor.execute("SELECT DISTINCT bulan FROM santri ORDER BY bulan DESC")
         bulan_list = cursor.fetchall()
 
@@ -66,22 +65,26 @@ async def menu_handler(update: Update, context: CallbackContext) -> None:
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.reply_text("📅 Pilih bulan untuk melihat riwayat hafalan:", reply_markup=reply_markup)
 
-    elif query.data.startswith("bulan_"):
-        bulan_terpilih = query.data.replace("bulan_", "")
+# Fungsi menangani pilihan bulan
+async def riwayat_bulan_handler(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    await query.answer()
 
-        cursor.execute("SELECT nama, pekan, hafalan_baru, total_juz FROM santri WHERE bulan=? ORDER BY pekan", (bulan_terpilih,))
-        hasil = cursor.fetchall()
+    bulan_terpilih = query.data.replace("bulan_", "")
 
-        if not hasil:
-            await query.message.reply_text(f"⚠️ Tidak ada data hafalan untuk bulan *{bulan_terpilih}*.", parse_mode="Markdown")
-            return
+    cursor.execute("SELECT nama, pekan, hafalan_baru, total_juz FROM santri WHERE bulan=? ORDER BY pekan", (bulan_terpilih,))
+    hasil = cursor.fetchall()
 
-        pesan = f"📅 *Riwayat Hafalan Bulan {bulan_terpilih}*:\n"
-        for nama, pekan, hafalan_baru, total_juz in hasil:
-            total_juz_str = int(total_juz) if total_juz.is_integer() else total_juz
-            pesan += f"\n👤 {nama}\n📅 Pekan {pekan}\n📖 Hafalan Baru: {hafalan_baru} Halaman\n📚 Total Hafalan: {total_juz_str} Juz\n"
+    if not hasil:
+        await query.message.reply_text(f"⚠️ Tidak ada data hafalan untuk bulan *{bulan_terpilih}*.", parse_mode="Markdown")
+        return
 
-        await query.message.reply_text(pesan, parse_mode="Markdown")
+    pesan = f"📅 *Riwayat Hafalan Bulan {bulan_terpilih}*:\n"
+    for nama, pekan, hafalan_baru, total_juz in hasil:
+        total_juz_str = int(total_juz) if total_juz.is_integer() else total_juz
+        pesan += f"\n👤 {nama}\n📅 Pekan {pekan}\n📖 Hafalan Baru: {hafalan_baru} Halaman\n📚 Total Hafalan: {total_juz_str} Juz\n"
+
+    await query.message.reply_text(pesan, parse_mode="Markdown")
 
 # Fungsi menangani webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
@@ -98,8 +101,8 @@ async def set_webhook():
 def main():
     app_telegram.add_handler(CommandHandler("start", start))
     app_telegram.add_handler(CallbackQueryHandler(menu_handler))
-    
-    # Menjalankan webhook
+    app_telegram.add_handler(CallbackQueryHandler(riwayat_bulan_handler, pattern=r"bulan_.*"))
+
     print("Mengatur webhook...")
     app_telegram.run_webhook(
         listen="0.0.0.0",
