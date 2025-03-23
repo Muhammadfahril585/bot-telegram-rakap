@@ -1,13 +1,11 @@
 
 import os
 import sqlite3
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, CallbackContext
-)
 import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, CallbackContext
 
-# Token bot Telegram dari environment variables
+# Ambil token dari environment variable
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 if not TOKEN:
@@ -25,7 +23,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS santri (
                     total_juz REAL)''')
 conn.commit()
 
-# Inisialisasi bot Telegram dengan mode asinkron
+# Inisialisasi bot Telegram
 app_telegram = Application.builder().token(TOKEN).build()
 
 # Fungsi menampilkan menu utama
@@ -46,9 +44,10 @@ app_telegram.add_handler(CommandHandler("start", start))
 # Fungsi utama menjalankan bot dengan polling
 async def main():
     print("Bot berjalan dengan metode polling...")
-    await app_telegram.run_polling()
+    await app_telegram.initialize()
+    await app_telegram.start()
+    app_telegram.run_polling()
 
 # Jalankan aplikasi dengan asyncio
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())  # Perbaikan: Gunakan asyncio.run()
+    asyncio.run(main())  # Gunakan asyncio.run untuk menghindari error loop
