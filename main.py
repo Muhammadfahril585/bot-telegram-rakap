@@ -1,12 +1,13 @@
 
 import os
 import sqlite3
+import asyncio
+import threading
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, CallbackContext
 )
-import asyncio
 
 # Inisialisasi Flask
 app = Flask(__name__)
@@ -49,14 +50,21 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 # Fungsi menangani webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(), app_telegram.bot)
-    asyncio.run(app_telegram.process_update(update))
-    return "OK", 200
+async def webhook():
+    try:
+        update = Update.de_json(request.get_json(), app_telegram.bot)
+        asyncio.create_task(app_telegram.process_update(update))  # Menjalankan pemrosesan secara async
+        return "OK", 200
+    except Exception as e:
+        return f"Error: {str(e)}", 500
 
 # Fungsi untuk mengatur webhook di Telegram
 async def set_webhook():
     await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+
+# Fungsi untuk menjalankan Flask di thread terpisah
+def run_flask():
+    app.run(host="0.0.0.0", port=8080, threaded=True)
 
 # Fungsi utama menjalankan bot
 async def main():
@@ -65,8 +73,13 @@ async def main():
     print("Mengatur webhook...")
     await set_webhook()
 
-    # Menjalankan Flask untuk menangani webhook
-    app.run(host="0.0.0.0", port=8080)
+    # Menjalankan Flask di thread lain
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    # Menjaga loop tetap berjalan
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
     asyncio.run(main())
