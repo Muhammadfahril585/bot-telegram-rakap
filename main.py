@@ -93,18 +93,16 @@ def webhook():
     app_telegram.update_queue.put(update)
     return "OK", 200
 
-# Fungsi untuk mengatur webhook di Telegram
-async def set_webhook():
-    await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-
 # Fungsi utama menjalankan bot
-def main():
+async def main():
     app_telegram.add_handler(CommandHandler("start", start))
     app_telegram.add_handler(CallbackQueryHandler(menu_handler))
     app_telegram.add_handler(CallbackQueryHandler(riwayat_bulan_handler, pattern=r"bulan_.*"))
 
     print("Mengatur webhook...")
-    app_telegram.run_webhook(
+    await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")  # Webhook diatur di sini
+
+    await app_telegram.run_webhook(
         listen="0.0.0.0",
         port=8080,
         webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
@@ -112,5 +110,4 @@ def main():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(set_webhook())  # Mengatur webhook sebelum bot berjalan
-    main()
+    asyncio.run(main())  # Pastikan menjalankan dalam event loop async
