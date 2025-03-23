@@ -30,7 +30,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS santri (
                     total_juz REAL)''')
 conn.commit()
 
-# Inisialisasi bot
+# Inisialisasi bot Telegram dengan mode asinkron
 app_telegram = Application.builder().token(TOKEN).build()
 
 # Fungsi menampilkan menu utama
@@ -48,17 +48,18 @@ async def start(update: Update, context: CallbackContext) -> None:
 # Tambahkan handler ke bot
 app_telegram.add_handler(CommandHandler("start", start))
 
-# Endpoint untuk webhook (hanya menerima POST request)
+# Endpoint untuk webhook (harus memakai await saat memproses update)
 @app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
+async def webhook():
     try:
         update = Update.de_json(request.get_json(), app_telegram.bot)
-        asyncio.create_task(app_telegram.process_update(update))
+        await app_telegram.process_update(update)  # Perbaikan: pakai await
         return jsonify({"status": "success"}), 200
     except Exception as e:
+        print(f"Error di webhook: {str(e)}")  # Logging tambahan
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# Endpoint untuk cek status (gunakan untuk debug)
+# Endpoint untuk cek status bot
 @app.route("/", methods=["GET"])
 def home():
     return "Bot Telegram Hafalan Qur'an Aktif!", 200
@@ -73,5 +74,9 @@ async def main():
     await set_webhook()
     app.run(host="0.0.0.0", port=8080)
 
+# Jalankan aplikasi dengan asyncio
 if __name__ == "__main__":
-    asyncio.run(main())
+    import uvicorn
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    uvicorn.run(app, host="0.0.0.0", port=8080)
