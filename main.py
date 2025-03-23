@@ -1,7 +1,6 @@
 
 import os
 import sqlite3
-import logging
 from flask import Flask, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -9,20 +8,15 @@ from telegram.ext import (
 )
 import asyncio
 
-# Konfigurasi logging
-logging.basicConfig(level=logging.INFO)
-
 # Inisialisasi Flask
 app = Flask(__name__)
 
-# Token bot Telegram
+# Token bot Telegram & URL Webhook dari environment variables
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-if not TOKEN:
-    raise ValueError("Error: TELEGRAM_TOKEN belum diatur di environment variables.")
-if not WEBHOOK_URL:
-    raise ValueError("Error: WEBHOOK_URL belum diatur di environment variables.")
+if not TOKEN or not WEBHOOK_URL:
+    raise ValueError("Error: TELEGRAM_TOKEN atau WEBHOOK_URL belum diatur.")
 
 # Koneksi ke database SQLite
 conn = sqlite3.connect("hafalan.db", check_same_thread=False)
@@ -51,36 +45,32 @@ async def start(update: Update, context: CallbackContext) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🔹 *Menu Bot Hafalan*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# Route untuk webhook (menerima update dari Telegram)
+# Tambahkan handler ke bot
+app_telegram.add_handler(CommandHandler("start", start))
+
+# Endpoint untuk webhook (hanya menerima POST request)
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"status": "error", "message": "No JSON received"}), 400
-        
-        update = Update.de_json(data, app_telegram.bot)
-        asyncio.run(app_telegram.process_update(update))
-
+        update = Update.de_json(request.get_json(), app_telegram.bot)
+        asyncio.create_task(app_telegram.process_update(update))
         return jsonify({"status": "success"}), 200
     except Exception as e:
-        logging.error(f"Error processing update: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# Fungsi untuk mengatur webhook di Telegram
+# Endpoint untuk cek status (gunakan untuk debug)
+@app.route("/", methods=["GET"])
+def home():
+    return "Bot Telegram Hafalan Qur'an Aktif!", 200
+
+# Fungsi mengatur webhook di Telegram
 async def set_webhook():
-    url = f"{WEBHOOK_URL}/{TOKEN}"
-    await app_telegram.bot.set_webhook(url)
-    logging.info(f"Webhook telah diatur: {url}")
+    await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
 # Fungsi utama menjalankan bot
 async def main():
-    app_telegram.add_handler(CommandHandler("start", start))
-
     print("Mengatur webhook...")
     await set_webhook()
-
-    # Menjalankan Flask untuk menangani webhook
     app.run(host="0.0.0.0", port=8080)
 
 if __name__ == "__main__":
