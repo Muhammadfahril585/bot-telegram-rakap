@@ -1,13 +1,16 @@
 
 import os
 import sqlite3
-import asyncio
-import threading
-from flask import Flask, request
+import logging
+from flask import Flask, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, CallbackContext
 )
+import asyncio
+
+# Konfigurasi logging
+logging.basicConfig(level=logging.INFO)
 
 # Inisialisasi Flask
 app = Flask(__name__)
@@ -48,23 +51,27 @@ async def start(update: Update, context: CallbackContext) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🔹 *Menu Bot Hafalan*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# Fungsi menangani webhook
+# Route untuk webhook (menerima update dari Telegram)
 @app.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
+def webhook():
     try:
-        update = Update.de_json(request.get_json(), app_telegram.bot)
-        asyncio.create_task(app_telegram.process_update(update))  # Menjalankan pemrosesan secara async
-        return "OK", 200
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No JSON received"}), 400
+        
+        update = Update.de_json(data, app_telegram.bot)
+        asyncio.run(app_telegram.process_update(update))
+
+        return jsonify({"status": "success"}), 200
     except Exception as e:
-        return f"Error: {str(e)}", 500
+        logging.error(f"Error processing update: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # Fungsi untuk mengatur webhook di Telegram
 async def set_webhook():
-    await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-
-# Fungsi untuk menjalankan Flask di thread terpisah
-def run_flask():
-    app.run(host="0.0.0.0", port=8080, threaded=True)
+    url = f"{WEBHOOK_URL}/{TOKEN}"
+    await app_telegram.bot.set_webhook(url)
+    logging.info(f"Webhook telah diatur: {url}")
 
 # Fungsi utama menjalankan bot
 async def main():
@@ -73,13 +80,8 @@ async def main():
     print("Mengatur webhook...")
     await set_webhook()
 
-    # Menjalankan Flask di thread lain
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-
-    # Menjaga loop tetap berjalan
-    while True:
-        await asyncio.sleep(3600)
+    # Menjalankan Flask untuk menangani webhook
+    app.run(host="0.0.0.0", port=8080)
 
 if __name__ == "__main__":
     asyncio.run(main())
