@@ -4,7 +4,7 @@ import sqlite3
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, CallbackContext
+    Application, CommandHandler, CallbackQueryHandler
 )
 
 # Inisialisasi Flask
@@ -37,7 +37,7 @@ conn.commit()
 app_telegram = Application.builder().token(TOKEN).build()
 
 # Fungsi menampilkan menu utama
-async def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context) -> None:
     keyboard = [
         [InlineKeyboardButton("1️⃣ Tambah Hafalan", callback_data="tambah_hafalan")],
         [InlineKeyboardButton("2️⃣ Lihat Hafalan", callback_data="lihat_hafalan")],
@@ -49,7 +49,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("🔹 *Menu Bot Hafalan*", reply_markup=reply_markup, parse_mode="Markdown")
 
 # Fungsi menangani klik tombol menu utama
-async def menu_handler(update: Update, context: CallbackContext) -> None:
+async def menu_handler(update: Update, context) -> None:
     query = update.callback_query
     await query.answer()
 
@@ -66,7 +66,7 @@ async def menu_handler(update: Update, context: CallbackContext) -> None:
         await query.message.reply_text("📅 Pilih bulan untuk melihat riwayat hafalan:", reply_markup=reply_markup)
 
 # Fungsi menangani pilihan bulan
-async def riwayat_bulan_handler(update: Update, context: CallbackContext) -> None:
+async def riwayat_bulan_handler(update: Update, context) -> None:
     query = update.callback_query
     await query.answer()
 
@@ -93,6 +93,11 @@ def webhook():
     app_telegram.update_queue.put(update)
     return "OK", 200
 
+# Fungsi untuk mengatur webhook di Telegram
+async def set_webhook():
+    await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+    print("Webhook berhasil diatur!")
+
 # Fungsi utama menjalankan bot
 async def main():
     app_telegram.add_handler(CommandHandler("start", start))
@@ -100,8 +105,9 @@ async def main():
     app_telegram.add_handler(CallbackQueryHandler(riwayat_bulan_handler, pattern=r"bulan_.*"))
 
     print("Mengatur webhook...")
-    await app_telegram.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")  # Webhook diatur di sini
+    await set_webhook()
 
+    print("Bot berjalan dengan webhook...")
     await app_telegram.run_webhook(
         listen="0.0.0.0",
         port=8080,
@@ -110,4 +116,4 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())  # Pastikan menjalankan dalam event loop async
+    asyncio.run(main())  # Pastikan fungsi asinkron dipanggil dengan benar
